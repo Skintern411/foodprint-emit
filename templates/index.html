@@ -77,7 +77,7 @@
                                 <div class="form-group" id="{{ bill_type }}ImageUploadGroup">
                                     <label for="{{ bill_type }}ImageFile">Upload {{ config.name }} Bill Image:</label>
                                     <div class="file-upload">
-                                        <input type="file" id="{{ bill_type }}ImageFile" name="{{ bill_type }}_image_file" accept="image/*" capture="environment">
+                                        <input type="file" id="{{ bill_type }}ImageFile" name="{{ bill_type }}_image_file" accept="image/*">
                                         <div class="upload-preview">
                                             <img id="{{ bill_type }}ImagePreview" src="#" alt="Image Preview" style="display: none;">
                                         </div>
@@ -167,7 +167,7 @@
                                     <div class="form-group">
                                         <label for="foodImageFileMultiple">Upload Food Bill Image:</label>
                                         <div class="file-upload">
-                                            <input type="file" id="foodImageFileMultiple" name="food_image_file" accept="image/*" capture="environment">
+                                            <input type="file" id="foodImageFileMultiple" name="food_image_file" accept="image/*">
                                             <div class="upload-preview">
                                                 <img id="foodImagePreviewMultiple" src="#" alt="Image Preview" style="display: none;">
                                             </div>
@@ -193,7 +193,7 @@
                                     <div class="form-group">
                                         <label for="electricityImageFileMultiple">Upload Electricity Bill Image:</label>
                                         <div class="file-upload">
-                                            <input type="file" id="electricityImageFileMultiple" name="electricity_image_file" accept="image/*" capture="environment">
+                                            <input type="file" id="electricityImageFileMultiple" name="electricity_image_file" accept="image/*">
                                             <div class="upload-preview">
                                                 <img id="electricityImagePreviewMultiple" src="#" alt="Image Preview" style="display: none;">
                                             </div>
@@ -219,7 +219,7 @@
                                     <div class="form-group">
                                         <label for="waterImageFileMultiple">Upload Water Bill Image:</label>
                                         <div class="file-upload">
-                                            <input type="file" id="waterImageFileMultiple" name="water_image_file" accept="image/*" capture="environment">
+                                            <input type="file" id="waterImageFileMultiple" name="water_image_file" accept="image/*">
                                             <div class="upload-preview">
                                                 <img id="waterImagePreviewMultiple" src="#" alt="Image Preview" style="display: none;">
                                             </div>
@@ -304,6 +304,7 @@
             <section id="history" class="hidden-section">
                 <h2>Your Emission History</h2>
                 <h5>... this is your sample history, to show you that if you continue, a dashboard like this will help you track your history</h5>
+
                 
                 <div class="history-summary-boxes">
                     <div class="summary-box">
@@ -392,6 +393,8 @@
             
             <section id="rewards" class="hidden-section">
                 <h2>Your Eco Rewards</h2>
+                <h5>... this is your sample history, to show you that if you continue, a dashboard like this will help you track your points</h5>
+
                 
                 <div class="rewards-summary-boxes">
                     <div class="summary-box">
