@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FoodPrint - Food CO2 Emission Tracker</title>
+    <!-- Include CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-leaf"></i>
+                <h1>FoodPrint</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li class="active"><a href="#home">Home</a></li>
+                    <li><a href="#history">History</a></li>
+                    <li><a href="#about">About</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <section id="home" class="active-section">
+                <div class="hero">
+                    <h1>Track Your Food's Carbon Footprint</h1>
+                    <p>Upload a food bill image or describe your meal to calculate its environmental impact.</p>
+                </div>
+
+                <div class="emission-tracker">
+                    <h2>Food Emission Analyzer</h2>
+                    
+                    <div class="info-banner">
+                        <i class="fas fa-info-circle"></i>
+                        <p>Our AI can analyze your food bills or meal descriptions to estimate CO2 emissions. Simply upload an image of your bill or describe what you ate.</p>
+                    </div>
+                    
+                    <form id="foodEmissionForm">
+                        <div class="form-group" id="imageUploadGroup">
+                            <label for="imageFile">Upload Food Bill Image:</label>
+                            <div class="file-upload">
+                                <input type="file" id="imageFile" name="image_file" accept="image/*" capture="environment">
+                                <div class="upload-preview">
+                                    <img id="imagePreview" src="#" alt="Image Preview" style="display: none;">
+                                </div>
+                                <label for="imageFile" class="upload-button">
+                                    <i class="fas fa-camera"></i> Take Photo or Choose Image
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="textDescription">Or Describe Your Meal:</label>
+                            <textarea id="textDescription" name="text_description" rows="4" placeholder="E.g., 'Dinner with rice, chicken curry, naan bread, and a side salad' or 'Vegetarian pizza with extra cheese'"></textarea>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" id="analyzeBtn">
+                                <i class="fas fa-calculator"></i> Calculate Emissions
+                            </button>
+                        </div>
+                    </form>
+
+                    <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Analyzing food emissions...</p>
+                    </div>
+
+                    <div id="analysisResults" class="analysis-results" style="display: none;">
+                        <h3>Food Emission Analysis Results</h3>
+                        <div id="resultsContent" class="results-content" style="overflow-x: auto;"></div>
+                        <div class="results-actions">
+                            <button id="saveResultsBtn">
+                                <i class="fas fa-save"></i> Save to History
+                            </button>
+                            <button id="newAnalysisBtn">
+                                <i class="fas fa-plus"></i> New Analysis
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="history" class="hidden-section">
+                <h2>Your Food Emission History</h2>
+                <div class="history-chart">
+                    <canvas id="emissionsChart"></canvas>
+                </div>
+                <div class="history-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Emissions</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <!-- This will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="about" class="hidden-section">
+                <h2>About FoodPrint</h2>
+                <div class="about-content">
+                    <div class="about-section">
+                        <h3>Our Mission</h3>
+                        <p>FoodPrint is dedicated to helping individuals understand the environmental impact of their food choices. By providing easy-to-use tools for tracking CO2 emissions from meals, we empower users to make more sustainable food decisions.</p>
+                    </div>
+
+                    <div class="about-section">
+                        <h3>How It Works</h3>
+                        <p>Our application uses advanced AI to analyze your food bills or meal descriptions to estimate their CO2 emissions. Simply upload an image of your food bill or describe your meal, and our system will calculate the approximate carbon footprint based on industry-standard emission factors.</p>
+                    </div>
+
+                    <div class="about-section">
+                        <h3>Take Action</h3>
+                        <p>Knowledge is just the first step. FoodPrint provides personalized recommendations to help you reduce the carbon footprint of your meals in practical, achievable ways. Track your progress over time and see the positive impact of your food choices.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 FoodPrint. All rights reserved.</p>
+            <div class="footer-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Contact Us</a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Include Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Include JavaScript -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
