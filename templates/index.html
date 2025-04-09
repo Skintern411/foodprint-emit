@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FoodPrint - Food CO2 Emission Tracker</title>
+    <title>EcoTrack - CO2 Emission Tracker</title>
     <!-- Include CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <!-- Font Awesome for icons -->
@@ -18,12 +18,13 @@
         <header>
             <div class="logo">
                 <i class="fas fa-leaf"></i>
-                <h1>FoodPrint</h1>
+                <h1>EcoTrack</h1>
             </div>
             <nav>
                 <ul>
                     <li class="active"><a href="#home">Home</a></li>
                     <li><a href="#history">History</a></li>
+                    <li><a href="#rewards">Rewards</a></li>
                     <li><a href="#about">About</a></li>
                 </ul>
             </nav>
@@ -32,76 +33,352 @@
         <main>
             <section id="home" class="active-section">
                 <div class="hero">
-                    <h1>Track Your Food's Carbon Footprint</h1>
-                    <p>Upload a food bill image or describe your meal to calculate its environmental impact.</p>
+                    <h1>Track Your Carbon Footprint</h1>
+                    <p>Upload your bills or describe your consumption to calculate environmental impact and earn rewards.</p>
                 </div>
 
-                <div class="emission-tracker">
-                    <h2>Food Emission Analyzer</h2>
-                    
-                    <div class="info-banner">
-                        <i class="fas fa-info-circle"></i>
-                        <p>Our AI can analyze your food bills or meal descriptions to estimate CO2 emissions. Simply upload an image of your bill or describe what you ate.</p>
+                <div class="bill-type-selector">
+                    <div class="tabs">
+                        <div class="tab active" data-bill-type="single">
+                            <i class="fas fa-file-invoice"></i>
+                            <span>Single Bill</span>
+                        </div>
+                        <div class="tab" data-bill-type="multiple">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                            <span>Multiple Bills</span>
+                        </div>
                     </div>
-                    
-                    <form id="foodEmissionForm">
-                        <div class="form-group" id="imageUploadGroup">
-                            <label for="imageFile">Upload Food Bill Image:</label>
-                            <div class="file-upload">
-                                <input type="file" id="imageFile" name="image_file" accept="image/*" capture="environment">
-                                <div class="upload-preview">
-                                    <img id="imagePreview" src="#" alt="Image Preview" style="display: none;">
+                </div>
+
+                <!-- Single Bill Analysis Form -->
+                <div id="singleBillForm" class="bill-form active-form">
+                    <div class="bill-type-buttons">
+                        {% for bill_type, config in bill_types.items() %}
+                        <div class="bill-type-button {% if bill_type == 'food' %}active{% endif %}" data-bill-type="{{ bill_type }}">
+                            <i class="fas fa-{{ config.icon }}"></i>
+                            <span>{{ config.name }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="emission-tracker">
+                        <h2>Emission Analyzer</h2>
+                        
+                        <div class="info-banner">
+                            <i class="fas fa-info-circle"></i>
+                            <p id="billInfoText">Our AI can analyze your food bills or meal descriptions to estimate CO2 emissions. Simply upload an image or describe what you ate.</p>
+                        </div>
+                        
+                        <form id="emissionForm">
+                            <input type="hidden" id="billType" name="bill_type" value="food">
+                            
+                            {% for bill_type, config in bill_types.items() %}
+                            <div class="bill-content" id="{{ bill_type }}_content" {% if bill_type != 'food' %}style="display: none;"{% endif %}>
+                                <div class="form-group" id="{{ bill_type }}ImageUploadGroup">
+                                    <label for="{{ bill_type }}ImageFile">Upload {{ config.name }} Bill Image:</label>
+                                    <div class="file-upload">
+                                        <input type="file" id="{{ bill_type }}ImageFile" name="{{ bill_type }}_image_file" accept="image/*" capture="environment">
+                                        <div class="upload-preview">
+                                            <img id="{{ bill_type }}ImagePreview" src="#" alt="Image Preview" style="display: none;">
+                                        </div>
+                                        <label for="{{ bill_type }}ImageFile" class="upload-button">
+                                            <i class="fas fa-camera"></i> Take Photo or Choose Image
+                                        </label>
+                                    </div>
                                 </div>
-                                <label for="imageFile" class="upload-button">
-                                    <i class="fas fa-camera"></i> Take Photo or Choose Image
-                                </label>
+                            </div>
+                            {% endfor %}
+
+                            <div class="form-actions">
+                                <button type="submit" id="analyzeBtn">
+                                    <i class="fas fa-calculator"></i> Calculate Emissions
+                                </button>
+                            </div>
+                        </form>
+
+                        <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>Analyzing emissions...</p>
+                        </div>
+
+                        <div id="analysisResults" class="analysis-results" style="display: none;">
+                            <h3>Emission Analysis Results</h3>
+                            <div id="resultsContent" class="results-content" style="overflow-x: auto;"></div>
+                            
+                            <div id="impactVisualization" class="impact-visualization">
+                                <div class="impact-box trees-box">
+                                    <div class="trees-icon">
+                                        <i class="fas fa-tree"></i>
+                                        <i class="fas fa-tree"></i>
+                                        <i class="fas fa-tree"></i>
+                                    </div>
+                                    <div class="trees-info">
+                                        <h4>Trees Needed</h4>
+                                        <p><span id="treesCount">0</span> trees needed to offset this carbon footprint</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="impact-box rewards-box">
+                                    <div class="rewards-icon">
+                                        <i class="fas fa-award"></i>
+                                    </div>
+                                    <div class="rewards-info">
+                                        <h4>Rewards Earned</h4>
+                                        <p><span id="rewardsPoints">0</span> eco-points earned!</p>
+                                        <p id="rewardsMessage" class="rewards-message"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="results-actions">
+                                <button id="saveResultsBtn">
+                                    <i class="fas fa-save"></i> Save to History
+                                </button>
+                                <button id="newAnalysisBtn">
+                                    <i class="fas fa-plus"></i> New Analysis
+                                </button>
                             </div>
                         </div>
-
-                        <div class="form-group">
-                            <label for="textDescription">Or Describe Your Meal:</label>
-                            <textarea id="textDescription" name="text_description" rows="4" placeholder="E.g., 'Dinner with rice, chicken curry, naan bread, and a side salad' or 'Vegetarian pizza with extra cheese'"></textarea>
-                        </div>
-
-                        <div class="form-actions">
-                            <button type="submit" id="analyzeBtn">
-                                <i class="fas fa-calculator"></i> Calculate Emissions
-                            </button>
-                        </div>
-                    </form>
-
-                    <div id="loadingIndicator" class="loading-indicator" style="display: none;">
-                        <div class="spinner"></div>
-                        <p>Analyzing food emissions...</p>
                     </div>
+                </div>
 
-                    <div id="analysisResults" class="analysis-results" style="display: none;">
-                        <h3>Food Emission Analysis Results</h3>
-                        <div id="resultsContent" class="results-content" style="overflow-x: auto;"></div>
-                        <div class="results-actions">
-                            <button id="saveResultsBtn">
-                                <i class="fas fa-save"></i> Save to History
-                            </button>
-                            <button id="newAnalysisBtn">
-                                <i class="fas fa-plus"></i> New Analysis
-                            </button>
+                <!-- Multiple Bills Analysis Form -->
+                <div id="multipleBillForm" class="bill-form">
+                    <div class="emission-tracker">
+                        <h2>Multiple Bills Analyzer</h2>
+                        
+                        <div class="info-banner">
+                            <i class="fas fa-info-circle"></i>
+                            <p>Analyze multiple bills at once to see your total environmental impact and earn more rewards.</p>
+                        </div>
+                        
+                        <form id="multipleBillsForm">
+                            <!-- Food Bill Section -->
+                            <div class="bill-section">
+                                <div class="bill-section-header">
+                                    <div class="checkbox-container">
+                                        <input type="checkbox" id="includeFoodBill" name="food_submitted" value="true" checked>
+                                        <label for="includeFoodBill"></label>
+                                    </div>
+                                    <h3><i class="fas fa-utensils"></i> Food</h3>
+                                </div>
+                                
+                                <div class="bill-section-content" id="foodBillContent">
+                                    <div class="form-group">
+                                        <label for="foodImageFileMultiple">Upload Food Bill Image:</label>
+                                        <div class="file-upload">
+                                            <input type="file" id="foodImageFileMultiple" name="food_image_file" accept="image/*" capture="environment">
+                                            <div class="upload-preview">
+                                                <img id="foodImagePreviewMultiple" src="#" alt="Image Preview" style="display: none;">
+                                            </div>
+                                            <label for="foodImageFileMultiple" class="upload-button">
+                                                <i class="fas fa-camera"></i> Take Photo or Choose Image
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Electricity Bill Section -->
+                            <div class="bill-section">
+                                <div class="bill-section-header">
+                                    <div class="checkbox-container">
+                                        <input type="checkbox" id="includeElectricityBill" name="electricity_submitted" value="true">
+                                        <label for="includeElectricityBill"></label>
+                                    </div>
+                                    <h3><i class="fas fa-bolt"></i> Electricity</h3>
+                                </div>
+                                
+                                <div class="bill-section-content" id="electricityBillContent" style="display: none;">
+                                    <div class="form-group">
+                                        <label for="electricityImageFileMultiple">Upload Electricity Bill Image:</label>
+                                        <div class="file-upload">
+                                            <input type="file" id="electricityImageFileMultiple" name="electricity_image_file" accept="image/*" capture="environment">
+                                            <div class="upload-preview">
+                                                <img id="electricityImagePreviewMultiple" src="#" alt="Image Preview" style="display: none;">
+                                            </div>
+                                            <label for="electricityImageFileMultiple" class="upload-button">
+                                                <i class="fas fa-camera"></i> Take Photo or Choose Image
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Water Bill Section -->
+                            <div class="bill-section">
+                                <div class="bill-section-header">
+                                    <div class="checkbox-container">
+                                        <input type="checkbox" id="includeWaterBill" name="water_submitted" value="true">
+                                        <label for="includeWaterBill"></label>
+                                    </div>
+                                    <h3><i class="fas fa-water"></i> Water</h3>
+                                </div>
+                                
+                                <div class="bill-section-content" id="waterBillContent" style="display: none;">
+                                    <div class="form-group">
+                                        <label for="waterImageFileMultiple">Upload Water Bill Image:</label>
+                                        <div class="file-upload">
+                                            <input type="file" id="waterImageFileMultiple" name="water_image_file" accept="image/*" capture="environment">
+                                            <div class="upload-preview">
+                                                <img id="waterImagePreviewMultiple" src="#" alt="Image Preview" style="display: none;">
+                                            </div>
+                                            <label for="waterImageFileMultiple" class="upload-button">
+                                                <i class="fas fa-camera"></i> Take Photo or Choose Image
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="submit" id="analyzeMultipleBtn">
+                                    <i class="fas fa-calculator"></i> Calculate Total Emissions
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <div id="multipleLoadingIndicator" class="loading-indicator" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>Analyzing multiple bills...</p>
+                        </div>
+
+                        <div id="multipleAnalysisResults" class="analysis-results" style="display: none;">
+                            <h3>Multiple Bills Analysis Results</h3>
+                            
+                            <div class="emission-summary">
+                                <div class="emission-summary-box">
+                                    <h4>Total Carbon Footprint</h4>
+                                    <div class="total-emissions">
+                                        <span id="totalEmissionsValue">0</span>
+                                        <span class="unit">kg CO2e</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="emission-distribution" id="emissionDistribution">
+                                    <!-- Will be populated by JavaScript -->
+                                </div>
+                            </div>
+                            
+                            <div class="accordion" id="billsAccordion">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                            
+                            <div id="multipleImpactVisualization" class="impact-visualization">
+                                <div class="impact-box trees-box">
+                                    <div class="trees-icon">
+                                        <i class="fas fa-tree"></i>
+                                        <i class="fas fa-tree"></i>
+                                        <i class="fas fa-tree"></i>
+                                    </div>
+                                    <div class="trees-info">
+                                        <h4>Trees Needed</h4>
+                                        <p><span id="multipleTreesToPlant">0</span> trees needed to offset this carbon footprint</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="impact-box rewards-box">
+                                    <div class="rewards-icon">
+                                        <i class="fas fa-award"></i>
+                                    </div>
+                                    <div class="rewards-info">
+                                        <h4>Total Rewards Earned</h4>
+                                        <p><span id="totalRewardsPoints">0</span> eco-points earned!</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="results-actions">
+                                <button id="saveMultipleResultsBtn">
+                                    <i class="fas fa-save"></i> Save to History
+                                </button>
+                                <button id="newMultipleAnalysisBtn">
+                                    <i class="fas fa-plus"></i> New Analysis
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
             <section id="history" class="hidden-section">
-                <h2>Your Food Emission History</h2>
+                <h2>Your Emission History</h2>
+                
+                <div class="history-summary-boxes">
+                    <div class="summary-box">
+                        <div class="summary-icon">
+                            <i class="fas fa-cloud"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3>Total Emissions</h3>
+                            <p id="historySummaryEmissions">0 kg CO2e</p>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-box">
+                        <div class="summary-icon">
+                            <i class="fas fa-award"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3>Total Rewards</h3>
+                            <p id="historySummaryRewards">0 points</p>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-box">
+                        <div class="summary-icon">
+                            <i class="fas fa-tree"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3>Trees Needed</h3>
+                            <p id="historySummaryTrees">0 trees</p>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="history-chart">
+                    <div class="chart-header">
+                        <h3>Emissions Over Time</h3>
+                        <div class="chart-toggle">
+                            <button id="toggleWeekly" class="chart-toggle-btn active">Weekly</button>
+                            <button id="toggleMonthly" class="chart-toggle-btn">Monthly</button>
+                            <button id="toggleYearly" class="chart-toggle-btn">Yearly</button>
+                        </div>
+                    </div>
                     <canvas id="emissionsChart"></canvas>
                 </div>
+                
+                <div class="history-filters">
+                    <div class="filter-group">
+                        <label for="filterBillType">Filter by Type:</label>
+                        <select id="filterBillType">
+                            <option value="all">All Types</option>
+                            <option value="food">Food</option>
+                            <option value="electricity">Electricity</option>
+                            <option value="water">Water</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="filterDateRange">Date Range:</label>
+                        <select id="filterDateRange">
+                            <option value="all">All Time</option>
+                            <option value="week">Last Week</option>
+                            <option value="month">Last Month</option>
+                            <option value="year">Last Year</option>
+                        </select>
+                    </div>
+                </div>
+                
                 <div class="history-table">
                     <table>
                         <thead>
                             <tr>
                                 <th>Date</th>
+                                <th>Type</th>
                                 <th>Description</th>
                                 <th>Emissions</th>
+                                <th>Rewards</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -111,35 +388,206 @@
                     </table>
                 </div>
             </section>
+            
+            <section id="rewards" class="hidden-section">
+                <h2>Your Eco Rewards</h2>
+                
+                <div class="rewards-summary-boxes">
+                    <div class="summary-box">
+                        <div class="summary-icon">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3>Total Points</h3>
+                            <p id="rewardsSummaryPoints">0 points</p>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-box">
+                        <div class="summary-icon">
+                            <i class="fas fa-level-up-alt"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3>Current Level</h3>
+                            <p id="rewardsLevel">Eco Beginner</p>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-box">
+                        <div class="summary-icon">
+                            <i class="fas fa-seedling"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3>Impact</h3>
+                            <p id="rewardsImpact">0 trees planted</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="rewards-progress">
+                    <h3>Progress to Next Level</h3>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="levelProgressBar" style="width: 0%;"></div>
+                    </div>
+                    <p><span id="currentPoints">0</span> / <span id="pointsToNextLevel">100</span> points</p>
+                </div>
+                
+                <div class="rewards-thresholds">
+                    <h3>Emission Thresholds</h3>
+                    <p>Earn points by keeping your emissions below these thresholds:</p>
+                    
+                    <div class="thresholds-grid">
+                        <div class="threshold-category">
+                            <h4><i class="fas fa-utensils"></i> Food</h4>
+                            <div class="threshold-levels">
+                                <div class="threshold-level excellent">
+                                    <span class="level-name">Excellent</span>
+                                    <span class="level-value">≤ 1.5 kg CO2e</span>
+                                    <span class="level-points">50 points</span>
+                                </div>
+                                <div class="threshold-level good">
+                                    <span class="level-name">Good</span>
+                                    <span class="level-value">≤ 3.0 kg CO2e</span>
+                                    <span class="level-points">25 points</span>
+                                </div>
+                                <div class="threshold-level average">
+                                    <span class="level-name">Average</span>
+                                    <span class="level-value">≤ 5.0 kg CO2e</span>
+                                    <span class="level-points">10 points</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="threshold-category">
+                            <h4><i class="fas fa-bolt"></i> Electricity</h4>
+                            <div class="threshold-levels">
+                                <div class="threshold-level excellent">
+                                    <span class="level-name">Excellent</span>
+                                    <span class="level-value">≤ 50 kg CO2e</span>
+                                    <span class="level-points">50 points</span>
+                                </div>
+                                <div class="threshold-level good">
+                                    <span class="level-name">Good</span>
+                                    <span class="level-value">≤ 100 kg CO2e</span>
+                                    <span class="level-points">25 points</span>
+                                </div>
+                                <div class="threshold-level average">
+                                    <span class="level-name">Average</span>
+                                    <span class="level-value">≤ 200 kg CO2e</span>
+                                    <span class="level-points">10 points</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="threshold-category">
+                            <h4><i class="fas fa-water"></i> Water</h4>
+                            <div class="threshold-levels">
+                                <div class="threshold-level excellent">
+                                    <span class="level-name">Excellent</span>
+                                    <span class="level-value">≤ 10 kg CO2e</span>
+                                    <span class="level-points">50 points</span>
+                                </div>
+                                <div class="threshold-level good">
+                                    <span class="level-name">Good</span>
+                                    <span class="level-value">≤ 20 kg CO2e</span>
+                                    <span class="level-points">25 points</span>
+                                </div>
+                                <div class="threshold-level average">
+                                    <span class="level-name">Average</span>
+                                    <span class="level-value">≤ 30 kg CO2e</span>
+                                    <span class="level-points">10 points</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="rewards-levels">
+                    <h3>Eco Levels</h3>
+                    <div class="levels-grid">
+                        <div class="level-card" data-level="beginner">
+                            <div class="level-icon">
+                                <i class="fas fa-seedling"></i>
+                            </div>
+                            <h4>Eco Beginner</h4>
+                            <p>0-99 points</p>
+                            <div class="level-benefits">
+                                <p>Track your carbon footprint</p>
+                            </div>
+                        </div>
+                        
+                        <div class="level-card" data-level="explorer">
+                            <div class="level-icon">
+                                <i class="fas fa-leaf"></i>
+                            </div>
+                            <h4>Eco Explorer</h4>
+                            <p>100-499 points</p>
+                            <div class="level-benefits">
+                                <p>+ Personalized eco tips</p>
+                            </div>
+                        </div>
+                        
+                        <div class="level-card" data-level="guardian">
+                            <div class="level-icon">
+                                <i class="fas fa-tree"></i>
+                            </div>
+                            <h4>Eco Guardian</h4>
+                            <p>500-999 points</p>
+                            <div class="level-benefits">
+                                <p>+ Monthly impact report</p>
+                            </div>
+                        </div>
+                        
+                        <div class="level-card" data-level="champion">
+                            <div class="level-icon">
+                                <i class="fas fa-globe-americas"></i>
+                            </div>
+                            <h4>Eco Champion</h4>
+                            <p>1000+ points</p>
+                            <div class="level-benefits">
+                                <p>+ Exclusive eco challenges</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="rewards-tree-impact">
+                    <h3>Your Tree Impact</h3>
+                    <div class="tree-visualization" id="treeVisualization">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                    <p>Your eco-friendly choices have helped plant the equivalent of <span id="treesSaved">0</span> trees!</p>
+                </div>
+            </section>
 
             <section id="about" class="hidden-section">
-                <h2>About FoodPrint</h2>
+                <h2>About EcoTrack</h2>
                 <div class="about-content">
                     <div class="about-section">
                         <h3>Our Mission</h3>
-                        <p>FoodPrint is dedicated to helping individuals understand the environmental impact of their food choices. By providing easy-to-use tools for tracking CO2 emissions from meals, we empower users to make more sustainable food decisions.</p>
+                        <p>EcoTrack is dedicated to helping individuals and organizations understand and reduce their carbon footprint. By providing easy-to-use tools for tracking CO2 emissions across various activities, we empower users to make informed decisions that benefit our planet.</p>
                     </div>
 
                     <div class="about-section">
                         <h3>How It Works</h3>
-                        <p>Our application uses advanced AI to analyze your food bills or meal descriptions to estimate their CO2 emissions. Simply upload an image of your food bill or describe your meal, and our system will calculate the approximate carbon footprint based on industry-standard emission factors.</p>
+                        <p>Our application uses advanced AI to analyze food bills, electricity consumption, and water usage to estimate their CO2 emissions. Simply upload images of your bills or describe your consumption, and our system will calculate the approximate carbon footprint based on industry-standard emission factors.</p>
                     </div>
 
                     <div class="about-section">
+                        <h3>Rewards System</h3>
+                        <p>EcoTrack rewards users for eco-friendly choices. Earn points by keeping your emissions below specific thresholds, track your progress, and reach new eco levels. The more eco-conscious your choices, the more points you earn!</p>
+                    </div>
+                    
+                    <div class="about-section">
                         <h3>Take Action</h3>
-                        <p>Knowledge is just the first step. FoodPrint provides personalized recommendations to help you reduce the carbon footprint of your meals in practical, achievable ways. Track your progress over time and see the positive impact of your food choices.</p>
+                        <p>Knowledge is just the first step. EcoTrack provides personalized recommendations to help you reduce your carbon footprint in practical, achievable ways. Track your progress over time and see the positive impact of your choices on our environment.</p>
                     </div>
                 </div>
             </section>
         </main>
 
         <footer>
-            <p>&copy; 2025 FoodPrint. All rights reserved.</p>
-            <div class="footer-links">
-                <a href="#">Privacy Policy</a>
-                <a href="#">Terms of Service</a>
-                <a href="#">Contact Us</a>
-            </div>
+            <p>&copy; 2025 EcoTrack. All rights reserved.</p>
         </footer>
     </div>
 
