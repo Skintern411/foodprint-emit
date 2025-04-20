@@ -26,6 +26,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalUserLastActivity = document.getElementById('modalUserLastActivity');
     const userPointsChart = document.getElementById('userPointsChart');
     
+    // Delete Confirmation Modal Elements
+    const deleteConfirmModal = document.getElementById('deleteConfirmModal');
+    const deleteUserName = document.getElementById('deleteUserName');
+    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const closeDeleteModal = deleteConfirmModal ? deleteConfirmModal.querySelector('.close-modal') : null;
+    
     // State variables
     let userData = [];
     let filteredData = [];
@@ -36,6 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let searchTerm = '';
     let pointsFilter = 'all';
     let chartInstance = null;
+    let userToDelete = null;
     
     // Initialize
     init();
@@ -111,21 +119,54 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // Modal close
-        closeModal.addEventListener('click', function() {
-            userModal.style.display = 'none';
-        });
+        // User Modal Close
+        if (closeModal) {
+            closeModal.addEventListener('click', function() {
+                userModal.style.display = 'none';
+            });
+        }
         
         // Close modal when clicking outside
         window.addEventListener('click', function(event) {
             if (event.target === userModal) {
                 userModal.style.display = 'none';
             }
+            if (event.target === deleteConfirmModal) {
+                deleteConfirmModal.style.display = 'none';
+                userToDelete = null;
+            }
         });
+        
+        // Delete confirmation modal event listeners
+        if (deleteConfirmModal) {
+            // Cancel delete button
+            if (cancelDeleteBtn) {
+                cancelDeleteBtn.addEventListener('click', function() {
+                    deleteConfirmModal.style.display = 'none';
+                    userToDelete = null;
+                });
+            }
+            
+            // Confirm delete button
+            if (confirmDeleteBtn) {
+                confirmDeleteBtn.addEventListener('click', function() {
+                    if (userToDelete) {
+                        deleteUser(userToDelete.id);
+                    }
+                });
+            }
+            
+            // Close delete modal with X button
+            if (closeDeleteModal) {
+                closeDeleteModal.addEventListener('click', function() {
+                    deleteConfirmModal.style.display = 'none';
+                    userToDelete = null;
+                });
+            }
+        }
     }
     
     // Fetch user data from the server
-// Fetch user data from the server
     function fetchUserData() {
         loadingIndicator.style.display = 'block';
         usersTableBody.innerHTML = '';
@@ -176,7 +217,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 noResults.querySelector('p').textContent = `Error loading user data: ${error.message}`;
             });
     }    
-
     
     // Update dashboard summary
     function updateDashboardSummary() {
@@ -197,7 +237,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Filter and display users based on search and filter
-    // Update the filterAndDisplayUsers function in admin.js
     function filterAndDisplayUsers() {
         // Apply filters
         filteredData = userData.filter(user => {
@@ -243,16 +282,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get the values to compare based on sort column
             switch(currentSort.column) {
                 case 'id':
-                    valueA = a.id;
-                    valueB = b.id;
+                    valueA = parseInt(a.id);
+                    valueB = parseInt(b.id);
                     break;
                 case 'name':
-                    valueA = a.name;
-                    valueB = b.name;
+                    valueA = a.name.toLowerCase();
+                    valueB = b.name.toLowerCase();
                     break;
                 case 'points':
-                    valueA = a.points;
-                    valueB = b.points;
+                    valueA = parseInt(a.points);
+                    valueB = parseInt(b.points);
                     break;
                 case 'level':
                     valueA = getLevelValue(a.points);
@@ -298,7 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
         totalPages = Math.ceil(filteredData.length / itemsPerPage);
         
         // Update page info
-        pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+        pageInfo.textContent = `Page ${currentPage} of ${totalPages || 1}`;
         
         // Enable/disable pagination buttons
         prevPage.disabled = currentPage === 1;
@@ -344,6 +383,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <button class="action-btn view-btn" data-id="${user.id}" title="View Details">
                     <i class="fas fa-eye"></i>
                 </button>
+                <button class="action-btn delete-btn" data-id="${user.id}" data-name="${user.name}" title="Delete User">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
             </td>
         `;
         
@@ -353,6 +395,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const viewBtn = row.querySelector('.view-btn');
         viewBtn.addEventListener('click', function() {
             showUserDetails(user);
+        });
+        
+        // Add event listener to delete button
+        const deleteBtn = row.querySelector('.delete-btn');
+        deleteBtn.addEventListener('click', function() {
+            showDeleteConfirmation(user);
         });
     }
     
@@ -389,6 +437,51 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Show the modal
         userModal.style.display = 'block';
+    }
+    
+    // Show delete confirmation modal
+    function showDeleteConfirmation(user) {
+        userToDelete = user;
+        deleteUserName.textContent = user.name;
+        deleteConfirmModal.style.display = 'block';
+    }
+    
+    // Delete user function
+    function deleteUser(userId) {
+        fetch(`/admin/delete-user/${userId}`, {
+            method: 'DELETE',
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove user from the local data
+                userData = userData.filter(user => user.id !== userId);
+                filteredData = filteredData.filter(user => user.id !== userId);
+                
+                // Update dashboard summary
+                updateDashboardSummary();
+                
+                // Display current page or first page if current page is empty
+                if ((currentPage - 1) * itemsPerPage >= filteredData.length && currentPage > 1) {
+                    currentPage--;
+                }
+                displayUserPage();
+                
+                // Show success notification
+                alert(`User "${userToDelete.name}" has been successfully deleted.`);
+            } else {
+                alert(`Error: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting user:', error);
+            alert('An error occurred while deleting the user. Please try again.');
+        })
+        .finally(() => {
+            // Close the modal
+            deleteConfirmModal.style.display = 'none';
+            userToDelete = null;
+        });
     }
     
     // Create points history chart

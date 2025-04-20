@@ -359,6 +359,78 @@ tr:hover td {
     background-color: var(--table-row-hover);
 }
 
+/* Add these CSS styles to your admin.css file */
+
+/* Styles for delete button */
+.delete-btn {
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.delete-btn:hover {
+    background-color: #c0392b;
+}
+
+/* Cancel button */
+.cancel-btn {
+    background-color: #95a5a6;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-right: 10px;
+}
+
+.cancel-btn:hover {
+    background-color: #7f8c8d;
+}
+
+/* Modal actions */
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+/* Delete warning */
+.delete-warning {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.delete-warning i {
+    font-size: 48px;
+    color: var(--danger-color);
+    margin-bottom: 15px;
+}
+
+.delete-warning p {
+    margin-bottom: 10px;
+}
+
+.delete-warning strong {
+    font-weight: 600;
+}
+
+/* Table action buttons */
+.action-btn.delete-btn {
+    color: var(--danger-color);
+}
+
+.action-btn.delete-btn:hover {
+    background-color: rgba(231, 76, 60, 0.1);
+}
+
+
 .user-level {
     display: inline-block;
     padding: 5px 10px;

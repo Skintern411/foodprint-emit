@@ -175,6 +175,26 @@
                     </div>
                 </div>
             </div>
+            <div id="deleteConfirmModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Confirm Deletion</h3>
+                        <button class="close-modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="delete-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>Are you sure you want to delete user <strong id="deleteUserName">User Name</strong>?</p>
+                            <p>This action cannot be undone. All user data including their emission history will be permanently deleted.</p>
+                        </div>
+                        
+                        <div class="modal-actions">
+                            <button id="cancelDeleteBtn" class="cancel-btn">Cancel</button>
+                            <button id="confirmDeleteBtn" class="delete-btn">Delete User</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <footer>

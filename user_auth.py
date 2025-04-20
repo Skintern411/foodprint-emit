@@ -3,6 +3,7 @@ import sys
 import traceback
 import csv
 import uuid
+import re
 from datetime import datetime
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, jsonify
 from functools import wraps
@@ -13,6 +14,7 @@ user_auth_bp = Blueprint('user_auth', __name__)
 # Path to the users CSV file
 USERS_CSV_PATH = 'users.csv'
 EMISSIONS_HISTORY_PATH = 'emissions_history.csv'
+USER_DATA_DIR = 'user_data'
 
 # CSV Headers
 USER_CSV_HEADERS = ['User ID', 'Name', 'Phone Number', 'Join Date', 'Points']
@@ -25,6 +27,122 @@ def log_debug(message):
     print(f"[DEBUG {timestamp}] {message}", file=sys.stderr)
     sys.stderr.flush()  
 
+# Ensure user_data directory exists
+def ensure_user_directory():
+    """Ensure the user_data directory exists."""
+    if not os.path.exists(USER_DATA_DIR):
+        try:
+            os.makedirs(USER_DATA_DIR)
+            log_debug(f"Created {USER_DATA_DIR} directory")
+        except Exception as e:
+            log_debug(f"Error creating {USER_DATA_DIR} directory: {str(e)}")
+    return USER_DATA_DIR
+
+# Get standardized filename for a user
+def get_user_filename(name, phone):
+    """Generate a standardized filename for a user.
+    
+    Args:
+        name: User's name
+        phone: User's phone number
+        
+    Returns:
+        Sanitized filename like 'John_Doe_1234567890.csv'
+    """
+    # Replace spaces and special characters
+    sanitized_name = name.replace(' ', '_').replace(',', '').replace('.', '')
+    # Remove any other non-alphanumeric characters
+    sanitized_name = re.sub(r'[^a-zA-Z0-9_]', '', sanitized_name)
+    # Create filename with phone
+    filename = f"{sanitized_name}_{phone}.csv"
+    return filename
+
+# Get user by ID
+def get_user_by_id(user_id):
+    """Get user information by ID.
+    
+    Args:
+        user_id: User ID
+        
+    Returns:
+        User dictionary or None if not found
+    """
+    try:
+        with open(USERS_CSV_PATH, 'r', encoding='utf-8') as file:
+            reader = csv.reader(file)
+            headers = next(reader)  # Skip header row
+            
+            # Find column indices
+            user_id_idx = name_idx = phone_idx = join_date_idx = points_idx = -1
+            
+            for i, col in enumerate(headers):
+                col_lower = col.lower()
+                if 'user id' in col_lower or 'userid' in col_lower:
+                    user_id_idx = i
+                elif 'name' in col_lower:
+                    name_idx = i
+                elif 'phone' in col_lower:
+                    phone_idx = i
+                elif 'join' in col_lower and 'date' in col_lower:
+                    join_date_idx = i
+                elif 'point' in col_lower:
+                    points_idx = i
+            
+            # Search for the user by ID
+            for row in reader:
+                if row and row[user_id_idx] == str(user_id):
+                    return {
+                        'id': row[user_id_idx],
+                        'name': row[name_idx] if name_idx >= 0 else '',
+                        'phone': row[phone_idx] if phone_idx >= 0 else '',
+                        'join_date': row[join_date_idx] if join_date_idx >= 0 else '',
+                        'points': int(row[points_idx]) if points_idx >= 0 and row[points_idx].isdigit() else 0
+                    }
+        
+        return None
+    except Exception as e:
+        print(f"Error finding user by ID: {str(e)}")
+        return None
+
+# Migrate user history from global file to user-specific file
+def migrate_user_history(user_id, target_file_path):
+    """Migrate a user's history from the global file to their own file.
+    
+    Args:
+        user_id: User ID
+        target_file_path: Path to the user's new CSV file
+        
+    Returns:
+        Boolean indicating if migration was successful
+    """
+    try:
+        # Check if the global history file exists
+        if not os.path.exists(EMISSIONS_HISTORY_PATH):
+            return False
+            
+        # Find entries for this user
+        entries = []
+        with open(EMISSIONS_HISTORY_PATH, 'r', encoding='utf-8') as file:
+            reader = csv.reader(file)
+            headers = next(reader)  # Get the headers
+            
+            for row in reader:
+                if row and row[0] == str(user_id):
+                    entries.append(row)
+        
+        # If we found entries, write them to the user's file
+        if entries:
+            with open(target_file_path, 'w', newline='', encoding='utf-8') as file:
+                writer = csv.writer(file)
+                writer.writerow(EMISSIONS_HEADERS)  # Write headers
+                writer.writerows(entries)  # Write all entries
+            
+            return True
+        
+        return False
+    except Exception as e:
+        print(f"Error migrating user history: {str(e)}")
+        return False
 
 # Ensure CSV files exist
 def ensure_csv_files():
@@ -39,6 +157,9 @@ def ensure_csv_files():
         with open(EMISSIONS_HISTORY_PATH, 'w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
             writer.writerow(EMISSIONS_HEADERS)
+    
+    # Ensure user data directory exists
+    ensure_user_directory()
 
 # Initialize files
 ensure_csv_files()
@@ -53,7 +174,6 @@ def login_required(f):
     return decorated_function
 
 # Get next user ID
-# Update this function in user_auth.py
 def get_next_user_id():
     try:
         with open(USERS_CSV_PATH, 'r', encoding='utf-8') as file:
@@ -82,7 +202,6 @@ def get_next_user_id():
         return 1
     
 # Find user by name and phone
-# Update this function in user_auth.py
 def find_user(name, phone):
     try:
         with open(USERS_CSV_PATH, 'r', encoding='utf-8') as file:
@@ -129,7 +248,6 @@ def find_user(name, phone):
         return None
     
 # Create new user
-# Update this function in user_auth.py
 def create_user(name, phone):
     try:
         # Log the operation
@@ -206,7 +324,6 @@ def create_user(name, phone):
     
 
 # Update user points
-# Update this function in user_auth.py
 def update_user_points(user_id, additional_points):
     try:
         log_debug(f"Updating points for user {user_id}, adding {additional_points} points")
@@ -288,29 +405,94 @@ def update_user_points(user_id, additional_points):
         return False, 0
     
     
-# Save emission history
+# Save emission history to user-specific CSV file
 def save_emission_history(user_id, bill_type, description, emissions, unit, rewards):
     try:
+        # Get user info
+        user = get_user_by_id(user_id)
+        if not user:
+            log_debug(f"Error: User {user_id} not found")
+            return False
+            
+        # Ensure directory exists
+        user_data_dir = ensure_user_directory()
+        
+        # Get filename for this user
+        filename = get_user_filename(user['name'], user['phone'])
+        file_path = os.path.join(user_data_dir, filename)
+        
+        # Get current date
         date = datetime.now().strftime('%Y-%m-%d')
         
+        # Check if file exists, create with headers if not
+        file_exists = os.path.exists(file_path)
+        
+        log_debug(f"Saving emission history for user {user_id} to {file_path}")
+        
+        with open(file_path, 'a', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            
+            # Write headers if this is a new file
+            if not file_exists:
+                writer.writerow(EMISSIONS_HEADERS)
+                log_debug(f"Created new user history file with headers")
+                
+            # Write the history entry
+            writer.writerow([user_id, date, bill_type, description, emissions, unit, rewards])
+            log_debug(f"Added new emission entry to user's history file")
+        
+        # Also save to the global history for backward compatibility
+        # This can be removed later once migration is complete
         with open(EMISSIONS_HISTORY_PATH, 'a', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
             writer.writerow([user_id, date, bill_type, description, emissions, unit, rewards])
         
         return True
     except Exception as e:
-        print(f"Error saving emission history: {str(e)}")
+        log_debug(f"Error saving emission history: {str(e)}")
+        import traceback
+        log_debug(traceback.format_exc())
         return False
 
-# Get user's emission history
+# Get user's emission history from user-specific CSV file
 def get_user_emission_history(user_id):
     try:
-        history = []
+        # Get user info
+        user = get_user_by_id(user_id)
+        if not user:
+            log_debug(f"Error: User {user_id} not found")
+            return []
+            
+        # Get filename for this user
+        user_data_dir = ensure_user_directory()
+        filename = get_user_filename(user['name'], user['phone'])
+        file_path = os.path.join(user_data_dir, filename)
         
-        with open(EMISSIONS_HISTORY_PATH, 'r', encoding='utf-8') as file:
+        log_debug(f"Retrieving emission history for user {user_id} from {file_path}")
+        
+        # If file doesn't exist, check if we need to migrate data
+        if not os.path.exists(file_path):
+            log_debug(f"User history file doesn't exist, attempting migration from global history")
+            # Try to migrate from global history file
+            migrated = migrate_user_history(user_id, file_path)
+            
+            # If migration was successful, log it
+            if migrated:
+                log_debug(f"Successfully migrated history data for user {user_id}")
+            else:
+                log_debug(f"No history data to migrate for user {user_id}")
+            
+            # If file still doesn't exist after migration, return empty list
+            if not os.path.exists(file_path):
+                log_debug(f"No history file exists for user {user_id} after migration attempt")
+                return []
+        
+        # Read history from user's file
+        history = []
+        with open(file_path, 'r', encoding='utf-8') as file:
             reader = csv.DictReader(file)
             for row in reader:
-                if row['User ID'] == str(user_id):
+                if row['User ID'] == str(user_id):  # Double check it's the right user
                     history.append({
                         'date': row['Date'],
                         'bill_type': row['Bill Type'],
@@ -320,9 +502,12 @@ def get_user_emission_history(user_id):
                         'rewards': int(row['Rewards'])
                     })
         
+        log_debug(f"Retrieved {len(history)} history entries for user {user_id}")
         return history
     except Exception as e:
-        print(f"Error getting emission history: {str(e)}")
+        log_debug(f"Error getting emission history: {str(e)}")
+        import traceback
+        log_debug(traceback.format_exc())
         return []
 
 # Routes
@@ -344,6 +529,21 @@ def login():
             if not user:
                 flash('Error creating new user account', 'error')
                 return render_template('login.html')
+            
+            # For new users, create their personal history file
+            user_data_dir = ensure_user_directory()
+            filename = get_user_filename(user['name'], user['phone'])
+            file_path = os.path.join(user_data_dir, filename)
+            
+            # Create empty history file with headers
+            if not os.path.exists(file_path):
+                try:
+                    with open(file_path, 'w', newline='', encoding='utf-8') as file:
+                        writer = csv.writer(file)
+                        writer.writerow(EMISSIONS_HEADERS)
+                    log_debug(f"Created empty history file for new user: {file_path}")
+                except Exception as e:
+                    log_debug(f"Error creating history file for new user: {str(e)}")
         
         # Set user session
         session['user_id'] = user['id']
@@ -419,7 +619,12 @@ def save_result():
         })
     
     except Exception as e:
+        log_debug(f"Error saving result: {str(e)}")
+        import traceback
+        log_debug(traceback.format_exc())
         return jsonify({
             'success': False,
             'error': f'Error saving result: {str(e)}'
         }), 500
+    
+    
