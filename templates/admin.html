@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EcoTrack - Admin Panel</title>
+    <!-- Include CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-leaf"></i>
+                <h1>EcoTrack Admin</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="/" title="Back to Main App"><i class="fas fa-home"></i> Main App</a></li>
+                    <li class="active"><a href="/admin"><i class="fas fa-users"></i> Users</a></li>
+                    <li><a href="/admin/logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <section id="admin-dashboard">
+                <div class="dashboard-header">
+                    <h2><i class="fas fa-users"></i> User Management</h2>
+                    <div class="dashboard-actions">
+                        <div class="search-box">
+                            <input type="text" id="userSearch" placeholder="Search by name or ID...">
+                            <button id="searchBtn"><i class="fas fa-search"></i></button>
+                        </div>
+                        <select id="filterPoints">
+                            <option value="all">All Points</option>
+                            <option value="0-100">0-100 points</option>
+                            <option value="101-500">101-500 points</option>
+                            <option value="501-1000">501-1000 points</option>
+                            <option value="1000+">1000+ points</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Update this part in admin.html -->
+                <!-- <div class="search-box">
+                    <input type="text" id="userSearch" placeholder="Search by name, ID, or phone...">
+                    <button id="searchBtn" title="Search users"><i class="fas fa-search"></i></button>
+                </div> -->
+
+                <div class="dashboard-summary">
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3>Total Users</h3>
+                            <p id="totalUsers">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-award"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3>Total Points</h3>
+                            <p id="totalPoints">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3>Active Users</h3>
+                            <p id="activeUsers">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="user-table-container">
+                    <div class="table-header">
+                        <h3>User List</h3>
+                        <div class="pagination-controls">
+                            <span id="pageInfo">Page 1 of 1</span>
+                            <div class="pagination-buttons">
+                                <button id="prevPage" disabled><i class="fas fa-chevron-left"></i></button>
+                                <button id="nextPage" disabled><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th class="sortable" data-sort="id">User ID <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="name">Name <i class="fas fa-sort"></i></th>
+                                    <th>Phone Number</th>
+                                    <th class="sortable" data-sort="points">Points <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="level">Level <i class="fas fa-sort"></i></th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <!-- Will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div id="noResults" class="no-results" style="display: none;">
+                    <i class="fas fa-search"></i>
+                    <p>No users found matching your search criteria.</p>
+                </div>
+                
+                <div id="loadingIndicator" class="loading-indicator">
+                    <div class="spinner"></div>
+                    <p>Loading user data...</p>
+                </div>
+            </section>
+            
+            <!-- User Details Modal -->
+            <div id="userModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>User Details</h3>
+                        <button class="close-modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="user-profile">
+                            <div class="user-avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="user-info">
+                                <h4 id="modalUserName">User Name</h4>
+                                <p id="modalUserLevel" class="user-level">Eco Explorer</p>
+                            </div>
+                        </div>
+                        
+                        <div class="user-details">
+                            <div class="detail-row">
+                                <div class="detail-label">User ID:</div>
+                                <div class="detail-value" id="modalUserId">USR12345</div>
+                            </div>
+                            <div class="detail-row">
+                                <div class="detail-label">Phone Number:</div>
+                                <div class="detail-value" id="modalUserPhone">98******12</div>
+                            </div>
+                            <div class="detail-row">
+                                <div class="detail-label">Points:</div>
+                                <div class="detail-value" id="modalUserPoints">250</div>
+                            </div>
+                            <div class="detail-row">
+                                <div class="detail-label">Join Date:</div>
+                                <div class="detail-value" id="modalUserJoinDate">2024-01-15</div>
+                            </div>
+                            <div class="detail-row">
+                                <div class="detail-label">Last Activity:</div>
+                                <div class="detail-value" id="modalUserLastActivity">2025-04-10</div>
+                            </div>
+                        </div>
+                        
+                        <div class="points-history">
+                            <h4>Points History</h4>
+                            <canvas id="userPointsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 EcoTrack Admin Panel. Developed by EcoTrack Team.</p>
+        </footer>
+    </div>
+
+    <!-- Include Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Include JavaScript -->
+    <script src="{{ url_for('static', filename='admin.js') }}"></script>
+</body>
+</html>

@@ -294,21 +294,8 @@ document.addEventListener('DOMContentLoaded', function() {
         updateRewardsLevel(0);
     }
     
-    // ---------- DATA FETCHING FUNCTIONS ----------
     
-    // Fetch emission history from the server
-    function fetchEmissionHistory() {
-        fetch('/emission-history')
-            .then(response => response.json())
-            .then(data => {
-                emissionHistory = data.history;
-                updateHistoryTable();
-                updateHistoryChart();
-                updateHistorySummary();
-                updateRewardsStatus();
-            })
-            .catch(error => console.error('Error fetching emission history:', error));
-    }
+    
     
     // ---------- UI UPDATE FUNCTIONS ----------
     
@@ -1054,38 +1041,91 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Save single results to history
+    // Add this to your script.js file
+
+    // Check if user is logged in (add near the top of your init functions)
+    function isUserLoggedIn() {
+        return document.body.hasAttribute('data-user-logged-in');
+    }
+
+    // Update the saveSingleResultsToHistory function
     function saveSingleResultsToHistory() {
         if (currentAnalysis) {
-            // Add to local history array
-            emissionHistory.push(currentAnalysis);
+            // Check if user is logged in
+            if (!isUserLoggedIn()) {
+                if (confirm('You need to log in to save your results. Would you like to log in now?')) {
+                    window.location.href = '/user/login';
+                }
+                return;
+            }
             
-            // Update UI
-            updateHistoryTable();
-            updateHistoryChart();
-            updateHistorySummary();
-            updateRewardsStatus();
-            
-            // In a real app, you would also send this to the server
-            
-            // Show confirmation
-            alert('Analysis saved to history!');
-            
-            // Reset form
-            resetSingleAnalysisForm();
-            
-            // Navigate to history section
-            document.querySelector('nav ul li a[href="#history"]').click();
+            // Send data to server to save in user history
+            fetch('/save-to-history', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(currentAnalysis)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update points display if available
+                    if (data.updated_points !== undefined) {
+                        const userPointsElement = document.getElementById('userPoints');
+                        if (userPointsElement) {
+                            userPointsElement.textContent = data.updated_points;
+                        }
+                    }
+                    
+                    // Add to local history array
+                    emissionHistory.push(currentAnalysis);
+                    
+                    // Update UI
+                    updateHistoryTable();
+                    updateHistoryChart();
+                    updateHistorySummary();
+                    updateRewardsStatus();
+                    
+                    // Show confirmation
+                    alert('Analysis saved to history!');
+                    
+                    // Reset form
+                    resetSingleAnalysisForm();
+                    
+                    // Navigate to history section
+                    document.querySelector('nav ul li a[href="#history"]').click();
+                } else if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to save results'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while saving. Please try again.');
+            });
         }
     }
-    
-    // Save multiple results to history
+
+    // Similarly, update the saveMultipleResultsToHistory function
     function saveMultipleResultsToHistory() {
         if (currentMultipleAnalysis) {
-            // Add individual entries to history
+            // Check if user is logged in
+            if (!isUserLoggedIn()) {
+                if (confirm('You need to log in to save your results. Would you like to log in now?')) {
+                    window.location.href = '/user/login';
+                }
+                return;
+            }
+            
+            // Create an array of individual analyses to save
+            const analysesToSave = [];
+            
             Object.keys(currentMultipleAnalysis.results).forEach(billType => {
                 const result = currentMultipleAnalysis.results[billType];
                 
-                emissionHistory.push({
+                const analysis = {
                     date: currentMultipleAnalysis.date,
                     bill_type: billType,
                     description: `${BILL_TYPES_INFO[billType].name} analysis (multiple)`,
@@ -1094,26 +1134,81 @@ document.addEventListener('DOMContentLoaded', function() {
                     rewards: result.rewards.points,
                     trees_needed: result.trees_needed,
                     analysis: result.analysis
-                });
+                };
+                
+                analysesToSave.push(analysis);
             });
             
-            // Update UI
-            updateHistoryTable();
-            updateHistoryChart();
-            updateHistorySummary();
-            updateRewardsStatus();
+            // Send each analysis to be saved
+            const savePromises = analysesToSave.map(analysis => 
+                fetch('/save-to-history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(analysis)
+                }).then(response => response.json())
+            );
             
-            // In a real app, you would also send this to the server
-            
-            // Show confirmation
-            alert('Multiple analysis saved to history!');
-            
-            // Reset form
-            resetMultipleAnalysisForm();
-            
-            // Navigate to history section
-            document.querySelector('nav ul li a[href="#history"]').click();
+            Promise.all(savePromises)
+                .then(results => {
+                    // Check if all saves were successful
+                    const allSuccessful = results.every(result => result.success);
+                    
+                    if (allSuccessful) {
+                        // Update points display if available
+                        const lastResult = results[results.length - 1];
+                        if (lastResult && lastResult.updated_points !== undefined) {
+                            const userPointsElement = document.getElementById('userPoints');
+                            if (userPointsElement) {
+                                userPointsElement.textContent = lastResult.updated_points;
+                            }
+                        }
+                        
+                        // Add to local history array
+                        analysesToSave.forEach(analysis => {
+                            emissionHistory.push(analysis);
+                        });
+                        
+                        // Update UI
+                        updateHistoryTable();
+                        updateHistoryChart();
+                        updateHistorySummary();
+                        updateRewardsStatus();
+                        
+                        // Show confirmation
+                        alert('Multiple analysis saved to history!');
+                        
+                        // Reset form
+                        resetMultipleAnalysisForm();
+                        
+                        // Navigate to history section
+                        document.querySelector('nav ul li a[href="#history"]').click();
+                    } else {
+                        // Find the first error
+                        const errorResult = results.find(result => !result.success);
+                        alert('Error: ' + (errorResult.error || 'Failed to save results'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while saving. Please try again.');
+                });
         }
+    }
+
+    // Update fetchEmissionHistory function
+    function fetchEmissionHistory() {
+        fetch('/emission-history')
+            .then(response => response.json())
+            .then(data => {
+                emissionHistory = data.history;
+                updateHistoryTable();
+                updateHistoryChart();
+                updateHistorySummary();
+                updateRewardsStatus();
+            })
+            .catch(error => console.error('Error fetching emission history:', error));
     }
     
     // Reset single analysis form

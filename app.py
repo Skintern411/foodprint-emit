@@ -10,6 +10,11 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from dotenv import load_dotenv
 from typing import Dict, Any, List, Optional
+import csv
+from admin_routes import admin_bp
+from user_auth import user_auth_bp, find_user, update_user_points, save_emission_history, get_user_emission_history
+from flask import redirect, url_for
+
 
 # Load environment variables
 load_dotenv()
@@ -20,6 +25,9 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "your-api-key-here")
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = "emissions_tracker_secret_key"
+# Register admin blueprint
+app.register_blueprint(admin_bp)
+app.register_blueprint(user_auth_bp, url_prefix='/user')
 
 # Emission thresholds for rewards
 EMISSION_THRESHOLDS = {
@@ -651,7 +659,7 @@ def index():
     # Generate a session ID if not present
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
-        
+    
     return render_template('index.html', bill_types=BILL_TYPES)
 
 @app.route('/analyze-bill', methods=['POST'])
@@ -714,6 +722,76 @@ def analyze_bill():
         
     except Exception as e:
         return jsonify({'error': f'Error processing request: {str(e)}'}), 500
+
+# Add a new route to save results to user history
+@app.route('/save-to-history', methods=['POST'])
+def save_to_history():
+    """Save analysis results to user history."""
+    try:
+        # Check if user is logged in
+        if 'user_id' not in session:
+            return jsonify({
+                'success': False,
+                'error': 'You must be logged in to save results',
+                'redirect': url_for('user_auth.login')
+            }), 401
+        
+        data = request.json
+        user_id = session.get('user_id')
+        
+        bill_type = data.get('bill_type')
+        description = data.get('description', f"{BILL_TYPES[bill_type]['name']} bill analysis")
+        emissions = float(data.get('emissions', 0))
+        unit = data.get('unit', 'kg CO2e')
+        
+        # Handle different reward formats - fix for the error
+        rewards_data = data.get('rewards', 0)
+        if isinstance(rewards_data, dict):
+            # If rewards is a dictionary with 'points' key
+            rewards = int(rewards_data.get('points', 0))
+        elif isinstance(rewards_data, (int, float, str)):
+            # If rewards is directly a number or string
+            rewards = int(float(rewards_data))
+        else:
+            # Default case
+            rewards = 0
+        
+        # Save to emission history
+        save_success = save_emission_history(
+            user_id, bill_type, description, emissions, unit, rewards
+        )
+        
+        if not save_success:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to save emission history'
+            }), 500
+        
+        # Update user points
+        update_success, updated_points = update_user_points(user_id, rewards)
+        
+        if not update_success:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to update user points'
+            }), 500
+        
+        # Update session
+        session['user_points'] = updated_points
+        
+        return jsonify({
+            'success': True,
+            'message': 'Result saved successfully',
+            'updated_points': updated_points
+        })
+    
+    except Exception as e:
+        import traceback
+        print(f"Error saving to history: {str(e)}")
+        print(traceback.format_exc())  # Print the full stack trace
+        return jsonify({
+            'error': f'Error saving to history: {str(e)}'
+        }), 500
 
 @app.route('/analyze-multiple', methods=['POST'])
 def analyze_multiple():
@@ -795,49 +873,24 @@ def analyze_multiple():
     except Exception as e:
         return jsonify({'error': f'Error processing request: {str(e)}'}), 500
 
-@app.route('/emission-history', methods=['GET'])
+@app.route('/emission-history')
 def get_emission_history():
     """
-    Get the user's emission history (placeholder for future functionality).
+    Get the user's emission history.
     """
-    # This is a placeholder - in a real app, you would fetch from a database
-    sample_history = [
-        {
-            "date": "2025-04-05",
-            "bill_type": "food",
-            "description": "Dinner at Italian restaurant",
-            "emissions": 3.2,
-            "unit": "kg CO2e",
-            "rewards": 25
-        },
-        {
-            "date": "2025-04-04",
-            "bill_type": "electricity",
-            "description": "March electricity bill",
-            "emissions": 85.5,
-            "unit": "kg CO2e",
-            "rewards": 10
-        },
-        {
-            "date": "2025-04-03",
-            "bill_type": "water",
-            "description": "March water usage",
-            "emissions": 12.8,
-            "unit": "kg CO2e",
-            "rewards": 25
-        },
-        {
-            "date": "2025-04-02",
-            "bill_type": "food",
-            "description": "Vegetarian lunch",
-            "emissions": 1.5,
-            "unit": "kg CO2e",
-            "rewards": 50
-        }
-    ]
+    # Check if user is logged in
+    if 'user_id' not in session:
+        # Return empty history if not logged in
+        return jsonify({
+            'history': []
+        }), 200
+    
+    # Get user's emission history
+    user_id = session.get('user_id')
+    history = get_user_emission_history(user_id)
     
     return jsonify({
-        'history': sample_history
+        'history': history
     }), 200
 
 @app.route('/rewards-info', methods=['GET'])

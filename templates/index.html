@@ -13,19 +13,40 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
+<body {% if session.user_id %}data-user-logged-in="true"{% endif %}>
     <div class="container">
         <header>
             <div class="logo">
                 <i class="fas fa-leaf"></i>
                 <h1>EcoTrack</h1>
             </div>
+            <div class="user-info">
+                {% if session.user_id %}
+                <div class="logged-in-user">
+                    <span>Welcome, {{ session.user_name }}</span>
+                    <div class="user-points">
+                        <i class="fas fa-award"></i>
+                        <span id="userPoints">{{ session.user_points }}</span> points
+                    </div>
+                    <a href="{{ url_for('user_auth.logout') }}" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </a>
+                </div>
+                {% else %}
+                <a href="{{ url_for('user_auth.login') }}" class="login-btn">
+                    <i class="fas fa-user"></i> Login/Sign Up
+                </a>
+                {% endif %}
+            </div>
+
+
             <nav>
                 <ul>
                     <li class="active"><a href="#home">Home</a></li>
                     <li><a href="#history">History</a></li>
                     <li><a href="#rewards">Rewards</a></li>
                     <li><a href="#about">About</a></li>
+                    <li><a href="/admin/login" id="adminLink"><i class="fas fa-user-shield"></i> Admin</a></li>
                 </ul>
             </nav>
         </header>
@@ -303,7 +324,6 @@
 
             <section id="history" class="hidden-section">
                 <h2>Your Emission History</h2>
-                <h5>... this is your sample history, to show you that if you continue, a dashboard like this will help you track your history</h5>
 
                 
                 <div class="history-summary-boxes">
@@ -393,7 +413,6 @@
             
             <section id="rewards" class="hidden-section">
                 <h2>Your Eco Rewards</h2>
-                <h5>... this is your sample history, to show you that if you continue, a dashboard like this will help you track your points</h5>
 
                 
                 <div class="rewards-summary-boxes">
@@ -597,6 +616,13 @@
 
     <!-- Include Chart.js for data visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // Make sure admin link works
+        document.getElementById('adminLink').addEventListener('click', function(e) {
+            window.location.href = '/admin/login';
+        });
+    </script>
     <!-- Include JavaScript -->
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
